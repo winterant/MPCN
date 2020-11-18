@@ -9,12 +9,13 @@ Tay, Yi, Anh Tuan Luu, and Siu Cheung Hui. "Multi-pointer co-attention networks 
 
 # Dataset
   You need to prepare the following documents:  
-  1. dataset(`/data/music/Digital_Music.json`)  
+  1. dataset(`/data/music/Digital_Music_5.json.gz`)  
    Download from http://deepyeti.ucsd.edu/jianmo/amazon/index.html (Choose Digital Music)
 
 # Running
 
-Process dataset
+Preprocess origin dataset in json format to train.csv,valid.csv and test.csv.  
+**Rewrite some necessary settings** in this file before running it. 
 ```
 python preprocess.py
 ```

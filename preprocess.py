@@ -6,11 +6,11 @@ from sklearn.model_selection import train_test_split
 from nltk.tokenize import WordPunctTokenizer
 
 
-def process_dataset(json_path, test_num=3):
+def process_dataset(json_path, select_cols, rename_cols, test_num, csv_path):
     print('## Read the json file...')
     df = pd.read_json(json_path, lines=True)
-    df = df[['reviewerID', 'asin', 'reviewText', 'overall', 'reviewTime']]
-    df.columns = ['userID', 'itemID', 'review', 'rating', 'reviewTime']
+    df = df[select_cols]
+    df.columns = rename_cols
     # project user/item name to unique id
     df['userID'] = df.groupby(df['userID']).ngroup()
     df['itemID'] = df.groupby(df['itemID']).ngroup()
@@ -30,7 +30,7 @@ def process_dataset(json_path, test_num=3):
         return ' '.join(review)
 
     df = df.drop(df[[not isinstance(x, str) or len(x) == 0 for x in df['review']]].index)  # remove empty reviews!
-    df['review'] = df['review'].apply(clean_review)  # 清洗文本
+    df['review'] = df['review'].apply(clean_review)
 
     def str2timestamp(date_time):  # Convert datetime to form of second
         dt = datetime.datetime.strptime(date_time, '%m %d, %Y')
@@ -39,7 +39,6 @@ def process_dataset(json_path, test_num=3):
 
     df['reviewTime'] = df['reviewTime'].apply(str2timestamp)
 
-    print(f'## Got {len(df)} reviews from json! Split them into train,validation and test!')
     # For every user, the last review is used for test while penultimate is used for development
     train, valid, test = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     for s in df.groupby(by='userID'):
@@ -49,20 +48,24 @@ def process_dataset(json_path, test_num=3):
             train = train.append(samples[:-test_num * 2])
             valid = valid.append(samples[-test_num * 2:-test_num])
             test = test.append(samples[-test_num:])
-    print(f'## Saving the data. count: train {len(train)}, valid {len(valid)}, test {len(test)}')
-    train.to_csv(os.path.dirname(json_path) + '/train.csv', index=False, header=False)
-    valid.to_csv(os.path.dirname(json_path) + '/valid.csv', index=False, header=False)
-    test.to_csv(os.path.dirname(json_path) + '/test.csv', index=False, header=False)
-
-    user_count = len(df.groupby('userID'))
-    item_count = len(df.groupby('itemID'))
-    print(f'## Total user count:{user_count}; total item count:{item_count}')
+    train.to_csv(os.path.join(csv_path, 'train.csv'), index=False, header=False)
+    valid.to_csv(os.path.join(csv_path, 'valid.csv'), index=False, header=False)
+    test.to_csv(os.path.join(csv_path, 'test.csv'), index=False, header=False)
+    print(f'#### Split and saved dataset as csv: train {len(train)}, valid {len(valid)}, test {len(test)}')
+    print(f'#### Total: {len(df)} reviews, {len(df.groupby("userID"))} users, {len(df.groupby("itemID"))} items.')
     return train, valid, test
 
 
 if __name__ == '__main__':
-    print('## preprocess.py: Begin to load the data...')
     start_time = time.perf_counter()
-    process_dataset('data/music/Digital_Music.json', test_num=3)
+
+    # You must set following args depend on your dataset!
+    data_path = 'data/music/Digital_Music_5.json.gz'
+    select_Cols = ['reviewerID', 'asin', 'reviewText', 'overall', 'reviewTime']  # Selected columns in json format
+    rename_Cols = ['userID', 'itemID', 'review', 'rating', 'reviewTime']  # Rename above columns for convenience
+    save_path = os.path.dirname(data_path)
+
+    process_dataset(data_path, select_Cols, rename_Cols, 3, save_path)
+
     end_time = time.perf_counter()
     print(f'## preprocess.py: Data loading complete! Time used {end_time - start_time:.0f} seconds.')
