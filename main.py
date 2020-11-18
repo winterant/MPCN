@@ -52,7 +52,7 @@ def train(train_dataloader, valid_dataloader, model, config, model_path):
         valid_mse = calculate_mse(model, valid_dataloader)
         if best_loss > valid_mse:
             best_loss = valid_mse
-            torch.save(model, model_Path)
+            torch.save(model, model_path)
         train_loss = total_loss / total_samples
         print(f"{date()}#### Epoch {epoch:3d}; train mse {train_loss:.6f}; validation mse {valid_mse:.6f}")
 
