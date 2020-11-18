@@ -66,7 +66,7 @@ def test(dataloader, model):
     start_time = time.perf_counter()
     test_loss = calculate_mse(model, dataloader)
     end_time = time.perf_counter()
-    print(f"{date()}## Test end, test ems is {test_loss:.6f}, time used {end_time - start_time:.0f} seconds.")
+    print(f"{date()}## Test end, test mse is {test_loss:.6f}, time used {end_time - start_time:.0f} seconds.")
 
 
 if __name__ == '__main__':
