@@ -26,10 +26,10 @@ python data_split.py
 
 Train:
 ```
-python train.py
+python train.py --device cuda:0
 ```
 
 Test:
 ```
-python test.py
+python test.py --saved_model model/best_model.pt
 ```
