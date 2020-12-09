@@ -7,7 +7,7 @@ class GatingMachine(nn.Module):
         super(GatingMachine, self).__init__()
         self.gating1 = nn.Sequential(
             nn.Linear(in_features=word_dim, out_features=word_dim, bias=False),
-            nn.Tanh()
+            nn.Sigmoid()
         )
         self.gating2 = nn.Sequential(
             nn.Linear(in_features=word_dim, out_features=word_dim, bias=True),
