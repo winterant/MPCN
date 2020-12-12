@@ -17,7 +17,7 @@ def train(train_dataloader, valid_dataloader, model, config, model_path):
     start_time = time.perf_counter()
 
     opt = torch.optim.Adam(model.parameters(), config.learning_rate, weight_decay=config.l2_regularization)
-    torch.optim.lr_scheduler.ExponentialLR(opt, config.learning_rate_decay)
+    lr_sch = torch.optim.lr_scheduler.ExponentialLR(opt, config.learning_rate_decay)
     best_loss, best_epoch, best_model = 1000, 0, None
     for epoch in range(config.train_epochs):
         model.train()  # turn on the train
@@ -33,6 +33,7 @@ def train(train_dataloader, valid_dataloader, model, config, model_path):
             total_loss += loss.item()  # summing over all loss
             total_samples += len(pred)
 
+        lr_sch.step()
         model.eval()
         valid_mse = calculate_mse(model, valid_dataloader, config.device)
         if best_loss > valid_mse:
