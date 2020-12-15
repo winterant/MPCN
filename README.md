@@ -5,31 +5,27 @@ Tay, Yi, Anh Tuan Luu, and Siu Cheung Hui. "Multi-pointer co-attention networks 
 
 # Environments
   + python 3.8
-  + pytorch 1.60
+  + pytorch 1.70
 
 # Dataset
-  You need to prepare the following documents:  
-  1. Dataset(`data/music/Digital_Music.json.gz`)  
+
+You need to prepare the following documents:  
+1. Dataset(`data/Digital_Music.json.gz`)  
    Download from http://deepyeti.ucsd.edu/jianmo/amazon/index.html (Choose Digital Music)
-  
-  2. Word Embedding(`embedding/glove.6B.100d.txt`)  
+
+2. Word Embedding(`embedding/glove.6B.100d.txt`)  
    Download from https://nlp.stanford.edu/projects/glove
 
 # Pre-Process
 
 Preprocess origin dataset which is json format to be train.csv,valid.csv and test.csv. 
-```bash
-python data_split.py
+```
+python data_process.py
 ```
 
 # Running
 
-Train:
+Train and test:
 ```
-python train.py --device cuda:0
-```
-
-Test:
-```
-python test.py --saved_model model/best_model.pt
+python main.py --device cuda:0
 ```

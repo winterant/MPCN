@@ -1,3 +1,4 @@
+import os
 import time
 import pandas as pd
 
@@ -16,7 +17,7 @@ def load_embedding(word2vec_file):
             word_emb.append([float(i) for i in tokens[1:]])
             word_dict[tokens[0]] = word_idx
             word_idx += 1
-        word_emb.append([0]*len(word_emb[0]))
+        word_emb.append([0] * len(word_emb[0]))
         word_dict['<UNK>'] = word_idx
     return word_emb, word_dict
 
@@ -38,24 +39,26 @@ def calculate_mse(model, dataloader, device):
 
 class MPCNDataset(Dataset):
     def __init__(self, data_path, word_dict, config, retain_rui=True):
-        self.word_dict = word_dict
+        self.training = ('train' in data_path)
         self.review_count = config.review_count
         self.lowest_r_count = config.lowest_review_count  # lowest amount of reviews wrote by exactly one user/item
         self.review_length = config.review_length
-        self.PAD_WORD_idx = word_dict[config.PAD_WORD]
-        self.retain_rui = retain_rui
+        self.PAD_idx = word_dict[config.PAD_WORD]
 
         df = pd.read_csv(data_path, header=None, names=['userID', 'itemID', 'review', 'rating', 'reviewTime'])
-        df['review'] = df['review'].apply(self._review2id)
+        df['review'] = df['review'].apply(lambda r: [word_dict.get(w, self.PAD_idx) for w in str(r).split()])
+        if not self.training:
+            df1 = pd.read_csv(os.path.dirname(data_path) + '/valid_test.csv',
+                              header=None, names=['userID', 'itemID', 'review', 'rating', 'reviewTime'])
+            df1['review'] = df1['review'].apply(lambda r: [word_dict.get(w, self.PAD_idx) for w in str(r).split()])
+            self.non_train_df = df1
 
-        self.delete_idx = set()  # Save the indices of empty samples, delete them at last.
-        user_reviews = self._get_reviews(df)  # Gather reviews for every user
-        item_reviews = self._get_reviews(df, 'itemID', 'userID')
-        retain_idx = [idx for idx in range(user_reviews.shape[0]) if idx not in self.delete_idx]
+        user_reviews, del_idx_u = self._get_reviews(df, retain_rui=retain_rui)  # Gather reviews for every user
+        item_reviews, del_idx_i = self._get_reviews(df, 'itemID', 'userID', retain_rui)
+        retain_idx = [idx for idx in range(user_reviews.shape[0]) if idx not in (del_idx_u | del_idx_i)]
         self.user_reviews = user_reviews[retain_idx]
         self.item_reviews = item_reviews[retain_idx]
         self.rating = torch.Tensor(df['rating'].to_list()).view(-1, 1)[retain_idx]
-        del self.word_dict, self.delete_idx
 
     def __getitem__(self, idx):
         return self.user_reviews[idx], self.item_reviews[idx], self.rating[idx]
@@ -63,35 +66,28 @@ class MPCNDataset(Dataset):
     def __len__(self):
         return self.rating.shape[0]
 
-    def _get_reviews(self, df, lead='userID', costar='itemID'):
-        # For every sample (user,item), gather reviews for user/item.
-        reviews_by_lead = dict(list(df[[costar, 'review']].groupby(df[lead])))  # Information for every user/item
-        lead_reviews = []
-        for idx, (lead_id, costar_id) in enumerate(zip(df[lead], df[costar])):
-            df_data = reviews_by_lead[lead_id]  # get information of lead, return DataFrame.
-            if self.retain_rui:
+    def _get_reviews(self, df, groupBy='userID', target='itemID', retain_rui=True):
+        # For every sample (user,item), gather reviews for user or item.
+        if self.training:
+            reviews_groups = dict(list(df[[target, 'review']].groupby(df[groupBy])))
+        else:
+            reviews_groups = dict(list(self.non_train_df[[target, 'review']].groupby(self.non_train_df[groupBy])))
+        group_reviews = []
+        del_idx = set()  # gather indices which review has no word
+        for idx, (group_id, target_id) in enumerate(zip(df[groupBy], df[target])):
+            df_data = reviews_groups[group_id]  # group
+            if retain_rui:
                 reviews = df_data['review'].to_list()  # reviews with review u for i.
             else:
-                reviews = df_data['review'][df_data[costar] != costar_id].to_list()  # reviews without review u for i.
+                reviews = df_data['review'][df_data[target] != target_id].to_list()  # reviews without review u for i.
             if len(reviews) < self.lowest_r_count:
-                self.delete_idx.add(idx)
+                del_idx.add(idx)
             reviews = self._pad_reviews(reviews)
-            lead_reviews.append(reviews)
-        return torch.LongTensor(lead_reviews)
+            group_reviews.append(reviews)
+        return torch.LongTensor(group_reviews), del_idx
 
     def _pad_reviews(self, reviews):
         count, length = self.review_count, self.review_length
-        reviews = reviews[:count] + [[self.PAD_WORD_idx] * length] * (count - len(reviews))  # Certain count.
+        reviews = reviews[:count] + [[self.PAD_idx] * length] * (count - len(reviews))  # Certain count.
         reviews = [r[:length] + [0] * (length - len(r)) for r in reviews]  # Certain length of review.
         return reviews
-
-    def _review2id(self, review):  # Split a sentence into words, and map each word to a unique number by dict.
-        if not isinstance(review, str):
-            return []
-        wids = []
-        for word in review.split():
-            if word in self.word_dict:
-                wids.append(self.word_dict[word])  # word to unique number by dict.
-            else:
-                wids.append(self.PAD_WORD_idx)
-        return wids

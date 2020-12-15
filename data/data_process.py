@@ -1,9 +1,13 @@
+import argparse
 import datetime
 import os
+import sys
 import time
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from nltk.tokenize import WordPunctTokenizer
+
+os.chdir(sys.path[0])
 
 
 def process_dataset(json_path, select_cols, test_num, csv_path):
@@ -15,9 +19,9 @@ def process_dataset(json_path, select_cols, test_num, csv_path):
     df['userID'] = df.groupby(df['userID']).ngroup()
     df['itemID'] = df.groupby(df['itemID']).ngroup()
 
-    with open('../embedding/stopwords.txt') as f:  # stop vocabularies
+    with open('stopwords.txt') as f:  # stop vocabularies
         stop_words = set(f.read().splitlines())
-    with open('../embedding/punctuations.txt') as f:  # Useless punctuations
+    with open('punctuations.txt') as f:  # Useless punctuations
         punctuations = set(f.read().splitlines())
 
     def clean_review(review):
@@ -51,20 +55,22 @@ def process_dataset(json_path, select_cols, test_num, csv_path):
     train.to_csv(os.path.join(csv_path, 'train.csv'), index=False, header=False)
     valid.to_csv(os.path.join(csv_path, 'valid.csv'), index=False, header=False)
     test.to_csv(os.path.join(csv_path, 'test.csv'), index=False, header=False)
+    pd.concat([valid, test]).to_csv(os.path.join(csv_path, 'valid_test.csv'), index=False, header=False)
     print(f'#### Split and saved dataset as csv: train {len(train)}, valid {len(valid)}, test {len(test)}')
     print(f'#### Total: {len(df)} reviews, {len(df.groupby("userID"))} users, {len(df.groupby("itemID"))} items.')
     return train, valid, test
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_path', dest='data_path', default='Digital_Music_5.json.gz')
+    parser.add_argument('--select_cols', dest='select_cols', nargs='+',
+                        default=['reviewerID', 'asin', 'reviewText', 'overall', 'reviewTime'])
+    parser.add_argument('--test_count', dest='test_count', default=1, help='how many samples of last use to test')
+    parser.add_argument('--save_dir', dest='save_dir', default='./music')
+    args = parser.parse_args()
+
     start_time = time.perf_counter()
-
-    # You must set following args depend on your dataset!
-    data_path = os.path.abspath('./music/Digital_Music.json.gz')
-    select_Cols = ['reviewerID', 'asin', 'reviewText', 'overall', 'reviewTime']  # Selected exactly 5 columns
-    save_path = os.path.dirname(data_path)
-
-    process_dataset(data_path, select_Cols, 3, save_path)
-
+    process_dataset(args.data_path, args.select_cols, args.test_count, args.save_dir)
     end_time = time.perf_counter()
-    print(f'## preprocess.py: Data loading complete! Time used {end_time - start_time:.0f} seconds.')
+    print(f'## preprocess.py: Data process completed! Time used {end_time - start_time:.0f} seconds.')

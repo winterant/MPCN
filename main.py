@@ -47,18 +47,29 @@ def train(train_dataloader, valid_dataloader, model, config, model_path):
     return best_model
 
 
+def test(dataloader, model, device):
+    print(f'{date()}## Start the testing!')
+    start_time = time.perf_counter()
+    test_loss = calculate_mse(model, dataloader, device)
+    end_time = time.perf_counter()
+    print(f"{date()}## Test end, test mse is {test_loss:.6f}, time used {end_time - start_time:.0f} seconds.")
+
+
 if __name__ == '__main__':
     config = Config()
     print(f'{date()}## Load word2vec and data...')
-
     word_emb, word_dict = load_embedding(config.word2vec_file)
+
+    # Train
     train_dataset = MPCNDataset(config.train_file, word_dict, config)
     valid_dataset = MPCNDataset(config.valid_file, word_dict, config, retain_rui=False)
     train_dlr = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
     valid_dlr = DataLoader(valid_dataset, batch_size=config.batch_size)
-
-    MPCN_model = MPCN(config, word_emb, fusion_mode='sum').to(config.device)
-    del train_dataset, valid_dataset, word_emb, word_dict
-
     os.makedirs(os.path.dirname(config.saved_model), exist_ok=True)  # make dir if it isn't exist.
+    MPCN_model = MPCN(config, word_emb, fusion_mode=config.fusion_mode).to(config.device)
     train(train_dlr, valid_dlr, MPCN_model, config, config.saved_model)
+
+    # Test
+    test_dataset = MPCNDataset(config.test_file, word_dict, config, retain_rui=False)
+    test_dlr = DataLoader(test_dataset, batch_size=config.batch_size)
+    test(test_dlr, torch.load(config.saved_model), config.device)
