@@ -4,7 +4,7 @@ import torch
 
 
 class Config:
-    word2vec_file = 'embedding/glove.6B.100d.txt'
+    word2vec_file = 'embedding/glove.6B.50d.txt'
     train_file = 'data/music/train.csv'
     valid_file = 'data/music/valid.csv'
     test_file = 'data/music/test.csv'

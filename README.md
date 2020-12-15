@@ -13,7 +13,7 @@ You need to prepare the following documents:
 1. Dataset(`data/Digital_Music.json.gz`)  
    Download from http://deepyeti.ucsd.edu/jianmo/amazon/index.html (Choose Digital Music)
 
-2. Word Embedding(`embedding/glove.6B.100d.txt`)  
+2. Word Embedding(`embedding/glove.6B.50d.txt`)  
    Download from https://nlp.stanford.edu/projects/glove
 
 # Pre-Process
