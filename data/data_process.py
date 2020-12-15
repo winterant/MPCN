@@ -19,6 +19,7 @@ def process_dataset(json_path, select_cols, test_num, csv_path):
     df['userID'] = df.groupby(df['userID']).ngroup()
     df['itemID'] = df.groupby(df['itemID']).ngroup()
 
+    print('## Start to process data...')
     with open('stopwords.txt') as f:  # stop vocabularies
         stop_words = set(f.read().splitlines())
     with open('punctuations.txt') as f:  # Useless punctuations
@@ -55,9 +56,8 @@ def process_dataset(json_path, select_cols, test_num, csv_path):
     train.to_csv(os.path.join(csv_path, 'train.csv'), index=False, header=False)
     valid.to_csv(os.path.join(csv_path, 'valid.csv'), index=False, header=False)
     test.to_csv(os.path.join(csv_path, 'test.csv'), index=False, header=False)
-    pd.concat([valid, test]).to_csv(os.path.join(csv_path, 'valid_test.csv'), index=False, header=False)
-    print(f'#### Split and saved dataset as csv: train {len(train)}, valid {len(valid)}, test {len(test)}')
-    print(f'#### Total: {len(df)} reviews, {len(df.groupby("userID"))} users, {len(df.groupby("itemID"))} items.')
+    print(f'## Split and saved dataset as csv: train {len(train)}, valid {len(valid)}, test {len(test)}')
+    print(f'## Total: {len(df)} reviews, {len(df.groupby("userID"))} users, {len(df.groupby("itemID"))} items.')
     return train, valid, test
 
 

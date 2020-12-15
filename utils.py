@@ -1,4 +1,5 @@
 import os
+import pickle
 import time
 import pandas as pd
 
@@ -39,7 +40,6 @@ def calculate_mse(model, dataloader, device):
 
 class MPCNDataset(Dataset):
     def __init__(self, data_path, word_dict, config, retain_rui=True):
-        self.training = ('train' in data_path)
         self.review_count = config.review_count
         self.lowest_r_count = config.lowest_review_count  # lowest amount of reviews wrote by exactly one user/item
         self.review_length = config.review_length
@@ -47,14 +47,17 @@ class MPCNDataset(Dataset):
 
         df = pd.read_csv(data_path, header=None, names=['userID', 'itemID', 'review', 'rating', 'reviewTime'])
         df['review'] = df['review'].apply(lambda r: [word_dict.get(w, self.PAD_idx) for w in str(r).split()])
-        if not self.training:
-            df1 = pd.read_csv(os.path.dirname(data_path) + '/valid_test.csv',
-                              header=None, names=['userID', 'itemID', 'review', 'rating', 'reviewTime'])
-            df1['review'] = df1['review'].apply(lambda r: [word_dict.get(w, self.PAD_idx) for w in str(r).split()])
-            self.non_train_df = df1
+        if 'train' in data_path:
+            user_group = dict(list(df[['itemID', 'review']].groupby(df['userID'])))
+            item_group = dict(list(df[['userID', 'review']].groupby(df['itemID'])))
+            pickle.dump(user_group, open(os.path.dirname(data_path)+'/user_group.pkl', 'wb'))
+            pickle.dump(item_group, open(os.path.dirname(data_path)+'/item_group.pkl', 'wb'))
+        else:
+            user_group = pickle.load(open(os.path.dirname(data_path) + '/user_group.pkl', 'rb'))
+            item_group = pickle.load(open(os.path.dirname(data_path) + '/item_group.pkl', 'rb'))
 
-        user_reviews, del_idx_u = self._get_reviews(df, retain_rui=retain_rui)  # Gather reviews for every user
-        item_reviews, del_idx_i = self._get_reviews(df, 'itemID', 'userID', retain_rui)
+        user_reviews, del_idx_u = self._get_reviews(df, user_group, retain_rui=retain_rui)  # Gather reviews for user
+        item_reviews, del_idx_i = self._get_reviews(df, item_group, 'itemID', 'userID', retain_rui)
         retain_idx = [idx for idx in range(user_reviews.shape[0]) if idx not in (del_idx_u | del_idx_i)]
         self.user_reviews = user_reviews[retain_idx]
         self.item_reviews = item_reviews[retain_idx]
@@ -66,16 +69,11 @@ class MPCNDataset(Dataset):
     def __len__(self):
         return self.rating.shape[0]
 
-    def _get_reviews(self, df, groupBy='userID', target='itemID', retain_rui=True):
-        # For every sample (user,item), gather reviews for user or item.
-        if self.training:
-            reviews_groups = dict(list(df[[target, 'review']].groupby(df[groupBy])))
-        else:
-            reviews_groups = dict(list(self.non_train_df[[target, 'review']].groupby(self.non_train_df[groupBy])))
+    def _get_reviews(self, df, reviews_groups, groupBy='userID', target='itemID', retain_rui=True):
         group_reviews = []
         del_idx = set()  # gather indices which review has no word
         for idx, (group_id, target_id) in enumerate(zip(df[groupBy], df[target])):
-            df_data = reviews_groups[group_id]  # group
+            df_data = reviews_groups.get(group_id, pd.DataFrame(columns=[target, 'review']))  # group
             if retain_rui:
                 reviews = df_data['review'].to_list()  # reviews with review u for i.
             else:
