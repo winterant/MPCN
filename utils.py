@@ -12,14 +12,12 @@ def load_embedding(word2vec_file):
     with open(word2vec_file, encoding='utf-8') as f:
         word_emb = list()
         word_dict = dict()
-        word_idx = 0
+        word_emb.append([0] * len(word_emb[0]))
+        word_dict['<UNK>'] = len(word_dict)
         for line in f.readlines():
             tokens = line.split(' ')
             word_emb.append([float(i) for i in tokens[1:]])
-            word_dict[tokens[0]] = word_idx
-            word_idx += 1
-        word_emb.append([0] * len(word_emb[0]))
-        word_dict['<UNK>'] = word_idx
+            word_dict[tokens[0]] = len(word_dict)
     return word_emb, word_dict
 
 
